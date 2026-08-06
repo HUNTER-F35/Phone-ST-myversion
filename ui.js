@@ -5,7 +5,7 @@ import {
     getSettings, getThreadList, getThread, markRead, addManualContact, hideContact,
     randomNumber, getTotalUnread, fmtTime, getRpDateTime, keyOf, getHiddenMessageIndexes,
     addGroup, delGroup, updateGroupMembers, attachImageToMessage, renameContact, banAccount,
-    isSmsBlocked, blockSmsContact, unblockSmsContact, saveMeta, invalidateChatCache, getMeta,
+    isSmsBlocked, blockSmsContact, unblockSmsContact, saveMeta, invalidateChatCache, getMeta, stripThink
 } from './state.js';
 import { updatePhoneInjection } from './prompts.js';
 import {
@@ -3773,12 +3773,11 @@ async function generateOfDmReply(chatId, userText, userImg) {
     const ctx = SillyTavern.getContext();
     const userName = ctx?.name1 || 'Ты';
 
-    // Короткая история (только 3 последних сообщения, чтобы не перегружать)
+    // История (последние 3 сообщения)
     const history = chat.messages.slice(-3).map(m => 
         `${m.dir === 'out' ? userName : chat.fanName}: ${m.text}`
     ).join('\n');
 
-    // Строгий промпт, как в SMS-чатах
     const prompt = `${chat.fanName} just received a private message from ${userName} in OnlyFans DM: "${userText}"${userImg ? ' (photo attached)' : ''}.
 
 ${history ? `Previous messages:\n${history}\n` : ''}
@@ -3788,8 +3787,12 @@ Keep responses natural and brief, like a real chat.`;
 
     try {
         const reply = await generateQuietPrompt(prompt, false, false);
-        if (reply && reply.trim()) {
-            const lines = reply.split('\n').filter(line => line.trim());
+        // Применяем stripThink и удаляем оставшиеся теги
+        let cleaned = stripThink(reply || '');
+        cleaned = cleaned.replace(/<\/?think>/gi, '').trim();
+
+        if (cleaned) {
+            const lines = cleaned.split('\n').filter(line => line.trim());
             if (lines.length === 0) {
                 _typingDm = false;
                 render();
@@ -3797,8 +3800,6 @@ Keep responses natural and brief, like a real chat.`;
             }
             for (const line of lines) {
                 addOfDmMessage(chat.id, 'in', line.trim());
-                // Убираем logSocialToChat, чтобы не создавать лишние записи в чате
-                // Информация о DM будет передаваться через инжект (getOfDmInjectBlock)
             }
             if (currentScreen === 'ofdmchat' && currentChatId === chatId) {
                 render();
