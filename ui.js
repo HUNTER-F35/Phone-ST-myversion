@@ -3744,14 +3744,17 @@ function renderOfDmChat(screen) {
 
     const input = screen.querySelector('#gp-input');
     const sendBtn = screen.querySelector('#gp-send');
-    const doSend = async () => {
+        const doSend = async () => {
         const text = (input?.value || '').trim();
         if (!text && !_ofDmDraftImage) return;
         const img = _ofDmDraftImage;
         _ofDmDraftImage = null;
         if (input) input.value = '';
         addOfDmMessage(chat.id, 'out', text, img);
+        // Показываем "печатает..."
+        _typingDm = true;
         render();
+        // Запускаем генерацию ответа (асинхронно)
         generateOfDmReply(chat.id, text, img);
     };
     sendBtn?.addEventListener('click', doSend);
@@ -3762,11 +3765,22 @@ function renderOfDmChat(screen) {
 
 async function generateOfDmReply(chatId, userText, userImg) {
     const chat = findOfDmChat(chatId);
-    if (!chat) return;
+    if (!chat) {
+        _typingDm = false;
+        if (currentScreen === 'ofdmchat' && currentChatId === chatId) render();
+        return;
+    }
     const ctx = SillyTavern.getContext();
     const userName = ctx?.name1 || 'Ты';
+    // Добавляем историю (последние 6 сообщений) для лучшего контекста
+    const history = chat.messages.slice(-6).map(m => 
+        `${m.dir === 'out' ? userName : chat.fanName}: ${m.text}`
+    ).join('\n');
+
     const prompt = `Ты — генератор личных сообщений в OnlyFans.
-Пользователь ${userName} написал фанату ${chat.fanName} в личные сообщения: "${userText}"${userImg ? ' (с фото)' : ''}.
+Переписка:
+${history}
+Пользователь ${userName} написал фанату ${chat.fanName}: "${userText}"${userImg ? ' (с фото)' : ''}.
 Ответь от лица ${chat.fanName} (или нескольких фанатов, если уместно) в виде одного или нескольких сообщений, как в переписке.
 Верни только текст сообщений, каждое с новой строки. Не используй форматирование, только чистый текст.
 Будь в характере фаната (подписчик, который интересуется контентом).`;
@@ -3777,6 +3791,8 @@ async function generateOfDmReply(chatId, userText, userImg) {
             const lines = reply.split('\n').filter(line => line.trim());
             for (const line of lines) {
                 addOfDmMessage(chat.id, 'in', line.trim());
+                // Логируем входящее сообщение в чат (чтобы модель видела)
+                logSocialToChat(`[OnlyFans DM от ${chat.fanName}] ${line.trim()}`);
             }
             if (currentScreen === 'ofdmchat' && currentChatId === chatId) {
                 render();
@@ -3784,6 +3800,12 @@ async function generateOfDmReply(chatId, userText, userImg) {
         }
     } catch (e) {
         console.warn('Ошибка генерации ответа OF DM:', e);
+    } finally {
+        // Скрываем индикатор "печатает..."
+        _typingDm = false;
+        if (currentScreen === 'ofdmchat' && currentChatId === chatId) {
+            render();
+        }
     }
 }
 
