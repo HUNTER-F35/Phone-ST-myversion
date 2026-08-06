@@ -53,6 +53,7 @@ let typingKey = null;           // тред, в котором «печатае�
 let sending = false;
 let _smsDraftImage = null;      // фото, приложенное к смс (dataURL до отправки)
 let _smsDraftVoice = false;     // режим голосового: текст уйдёт как расшифровка
+let _typingDm = false;
 
 // Черновики полей ввода. Живут ВНЕ DOM, поэтому переживают и перерисовку
 // (генерация картинки, публикация, новое сообщение), и закрытие телефона.
@@ -3638,6 +3639,9 @@ function renderOfDmChat(screen) {
     if (!chat) { currentScreen = 'ofdm'; render(); return; }
 
     let bubbles = '';
+        const typingHtml = _typingDm
+        ? `<div class="gp-bubble-wrap gp-in gp-typing-wrap"><div class="gp-bubble gp-typing"><span></span><span></span><span></span></div></div>`
+        : '';
     let lastDay = '';
     for (const msg of chat.messages) {
         if (msg.time) {
@@ -3678,6 +3682,7 @@ function renderOfDmChat(screen) {
         </div>
         <div class="gp-msgs" id="gp-msgs">
             ${bubbles || `<div class="gp-empty gp-empty-thread"><div class="gp-empty-icon">${ic('fa-message')}</div><div class="gp-empty-text">Начните переписку</div></div>`}
+            ${typingHtml}
         </div>
         ${_ofDmDraftImage ? `<div class="gp-sms-attach"><img src="${esc(_ofDmDraftImage)}" alt=""><span>Фото приложено</span><button class="gp-iconbtn gp-danger" id="gp-attach-clear">${ic('fa-xmark')}</button></div>` : ''}
         <div class="gp-inputbar">
