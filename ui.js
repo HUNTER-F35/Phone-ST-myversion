@@ -3773,32 +3773,18 @@ async function generateOfDmReply(chatId, userText, userImg) {
     const ctx = SillyTavern.getContext();
     const userName = ctx?.name1 || 'Ты';
 
-    // История (последние 6 сообщений) для контекста
-    const history = chat.messages.slice(-6).map(m => 
+    // Короткая история (только 3 последних сообщения, чтобы не перегружать)
+    const history = chat.messages.slice(-3).map(m => 
         `${m.dir === 'out' ? userName : chat.fanName}: ${m.text}`
     ).join('\n');
 
     // Строгий промпт, как в SMS-чатах
-    const prompt = `Continue the roleplay. ${chat.fanName} just received this message from ${userName} in OnlyFans DM: "${userText}"${userImg ? ' (with a photo attached)' : ''}.
+    const prompt = `${chat.fanName} just received a private message from ${userName} in OnlyFans DM: "${userText}"${userImg ? ' (photo attached)' : ''}.
 
-Recent chat history:
-${history}
-
-Reply in-character as ${chat.fanName} with ONLY the text of one or more messages, as in a real private chat. 
-- Each message on a new line.
-- NO actions, NO descriptions, NO OOC, NO internal thoughts, NO narration.
-- Just the raw text of the messages.
-- Keep it short, natural, and in the style of a subscriber.
-
-Example:
-Hey! Thanks for the photo, you're amazing!
-When's the next video coming?
-
-Forbidden:
-*smiles* — forbidden
-(OOC: ...) — forbidden
-He thinks... — forbidden
-Anything that is not a direct message text.`;
+${history ? `Previous messages:\n${history}\n` : ''}
+Reply as ${chat.fanName} with ONLY the text of 1-3 short messages, each on a new line.
+NO actions, NO thoughts, NO OOC, NO narration – just the messages themselves.
+Keep responses natural and brief, like a real chat.`;
 
     try {
         const reply = await generateQuietPrompt(prompt, false, false);
@@ -3811,7 +3797,8 @@ Anything that is not a direct message text.`;
             }
             for (const line of lines) {
                 addOfDmMessage(chat.id, 'in', line.trim());
-                logSocialToChat(`[OnlyFans DM от ${chat.fanName}] ${line.trim()}`);
+                // Убираем logSocialToChat, чтобы не создавать лишние записи в чате
+                // Информация о DM будет передаваться через инжект (getOfDmInjectBlock)
             }
             if (currentScreen === 'ofdmchat' && currentChatId === chatId) {
                 render();
