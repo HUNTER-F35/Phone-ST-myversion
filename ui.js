@@ -3772,36 +3772,59 @@ async function generateOfDmReply(chatId, userText, userImg) {
     }
     const ctx = SillyTavern.getContext();
     const userName = ctx?.name1 || 'Ты';
-    // Добавляем историю (последние 6 сообщений) для лучшего контекста
+
+    // История (последние 6 сообщений) для контекста
     const history = chat.messages.slice(-6).map(m => 
         `${m.dir === 'out' ? userName : chat.fanName}: ${m.text}`
     ).join('\n');
 
-    const prompt = `Ты — генератор личных сообщений в OnlyFans.
-Переписка:
+    // Строгий промпт, как в SMS-чатах
+    const prompt = `Continue the roleplay. ${chat.fanName} just received this message from ${userName} in OnlyFans DM: "${userText}"${userImg ? ' (with a photo attached)' : ''}.
+
+Recent chat history:
 ${history}
-Пользователь ${userName} написал фанату ${chat.fanName}: "${userText}"${userImg ? ' (с фото)' : ''}.
-Ответь от лица ${chat.fanName} (или нескольких фанатов, если уместно) в виде одного или нескольких сообщений, как в переписке.
-Верни только текст сообщений, каждое с новой строки. Не используй форматирование, только чистый текст.
-Будь в характере фаната (подписчик, который интересуется контентом).`;
+
+Reply in-character as ${chat.fanName} with ONLY the text of one or more messages, as in a real private chat. 
+- Each message on a new line.
+- NO actions, NO descriptions, NO OOC, NO internal thoughts, NO narration.
+- Just the raw text of the messages.
+- Keep it short, natural, and in the style of a subscriber.
+
+Example:
+Hey! Thanks for the photo, you're amazing!
+When's the next video coming?
+
+Forbidden:
+*smiles* — forbidden
+(OOC: ...) — forbidden
+He thinks... — forbidden
+Anything that is not a direct message text.`;
 
     try {
         const reply = await generateQuietPrompt(prompt, false, false);
         if (reply && reply.trim()) {
             const lines = reply.split('\n').filter(line => line.trim());
+            if (lines.length === 0) {
+                _typingDm = false;
+                render();
+                return;
+            }
             for (const line of lines) {
                 addOfDmMessage(chat.id, 'in', line.trim());
-                // Логируем входящее сообщение в чат (чтобы модель видела)
                 logSocialToChat(`[OnlyFans DM от ${chat.fanName}] ${line.trim()}`);
             }
             if (currentScreen === 'ofdmchat' && currentChatId === chatId) {
                 render();
             }
+        } else {
+            _typingDm = false;
+            render();
         }
     } catch (e) {
         console.warn('Ошибка генерации ответа OF DM:', e);
+        _typingDm = false;
+        render();
     } finally {
-        // Скрываем индикатор "печатает..."
         _typingDm = false;
         if (currentScreen === 'ofdmchat' && currentChatId === chatId) {
             render();
