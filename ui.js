@@ -3470,18 +3470,19 @@ function renderOfView(screen) {
                 ${comments.length === 0
                     ? `<div class="gp-empty-text gp-replies-empty">Реакций нет — нажми ${ic('fa-comments')}, фанаты налетят</div>`
                     : comments.map(c => `
-                    <div class="gp-reply">
-                        ${avatarHtml(c.author, avatarForAuthor(c.ak), 'gp-avatar gp-avatar-xs')}
-                        <div class="gp-reply-body">
-                            <div class="gp-tw-meta">
-                                <span class="gp-tw-name">${esc(c.author)}</span>
-                                ${c.tip ? `<span class="gp-of-tip-badge">${ic('fa-sack-dollar')} $${c.tip}</span>` : ''}
-                                <span class="gp-tw-time">· ${esc(timeAgo(c.time))}</span>
-                                <button class="gp-reply-del" data-del-ofcomment="${esc(c.id)}" title="Удалить">${ic('fa-xmark')}</button>
-                            </div>
-                            <div class="gp-tw-text">${esc(c.text)}</div>
-                        </div>
-                    </div>`).join('')}
+    <div class="gp-reply">
+        ${avatarHtml(c.author, avatarForAuthor(c.ak), 'gp-avatar gp-avatar-xs')}
+        <div class="gp-reply-body">
+            <div class="gp-tw-meta">
+                <span class="gp-tw-name">${esc(c.author)}</span>
+                ${c.tip ? `<span class="gp-of-tip-badge">${ic('fa-sack-dollar')} $${c.tip}</span>` : ''}
+                <span class="gp-tw-time">· ${esc(timeAgo(c.time))}</span>
+                <button class="gp-iconbtn gp-sm" data-dm-of="${esc(c.author)}" title="Написать">${ic('fa-envelope')}</button>
+                <button class="gp-reply-del" data-del-ofcomment="${esc(c.id)}" title="Удалить">${ic('fa-xmark')}</button>
+            </div>
+            <div class="gp-tw-text">${esc(c.text)}</div>
+        </div>
+    </div>`).join('')}
             </div>
         </div>
         <div class="gp-inputbar">
@@ -3515,6 +3516,19 @@ function renderOfView(screen) {
             if (currentScreen === 'ofview') render();
         }
     });
+
+    // Кнопка "Написать" у комментатора
+screen.querySelectorAll('[data-dm-of]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation(); // чтобы не открывать пост повторно
+        const fanName = btn.getAttribute('data-dm-of');
+        // Создаём чат (если уже есть – вернёт существующий)
+        const chat = createOfDmChat(fanName);
+        currentScreen = 'ofdmchat';
+        currentChatId = chat.id;
+        render();
+    });
+});
 
     const input = screen.querySelector('#gp-input');
     const doComment = async () => {
